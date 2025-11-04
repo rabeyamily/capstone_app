@@ -63,6 +63,12 @@ async def analyze_gap(request: AnalyzeGapRequest):
             gap_analysis=gap_analysis,
             overall_score=fit_score.overall_score
         )
+
+        # Generate learning resources
+        learning_resources = learning_resources_service.generate_recommendations(
+            gap_analysis=gap_analysis,
+            max_resources=10
+        )
         
         # Create input summaries
         resume_summary = {
@@ -88,7 +94,7 @@ async def analyze_gap(request: AnalyzeGapRequest):
             fit_score=fit_score,
             gap_analysis=gap_analysis,
             recommendations=recommendations,
-            learning_resources=None,  # Will be populated in Step 29
+            learning_resources=learning_resources,
             generated_at=datetime.now(),
             version="1.0.0"
         )

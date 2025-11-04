@@ -26,7 +26,11 @@ weasyprint==60.1
 nltk==3.8.1
 python-jose[cryptography]==3.3.0
 
-# Testing (optional for now)
+# Testing
 pytest==7.4.3
 pytest-asyncio==0.21.1
+httpx==0.25.2
+
+# Security & Rate Limiting
+slowapi==0.1.9
 

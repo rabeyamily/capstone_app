@@ -23,6 +23,8 @@ import {
   CardSkeleton,
   ChartSkeleton,
 } from "@/components/LoadingStates";
+import { exportToCSV, downloadCSV, downloadPDF } from "@/utils/export";
+import { generatePDFReportFromIds } from "@/services/api";
 
 export default function ResultsDashboard() {
   return (
@@ -49,8 +51,16 @@ function ResultsDashboardContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
+  const [downloadingPDF, setDownloadingPDF] = useState(false);
+  const [downloadingCSV, setDownloadingCSV] = useState(false);
 
   const fetchReport = async () => {
+    if (!searchParams) {
+      setError("Missing search parameters");
+      setLoading(false);
+      return;
+    }
+
     const resumeId = searchParams.get("resume");
     const jdId = searchParams.get("jd");
 
@@ -100,6 +110,49 @@ function ResultsDashboardContent() {
     fetchReport();
   };
 
+  const handleDownloadPDF = async () => {
+    if (!searchParams) {
+      setError("Cannot download PDF: Missing search parameters");
+      return;
+    }
+
+    const resumeId = searchParams.get("resume");
+    const jdId = searchParams.get("jd");
+
+    if (!resumeId || !jdId) {
+      setError("Cannot download PDF: Missing resume or job description ID");
+      return;
+    }
+
+    setDownloadingPDF(true);
+    try {
+      const pdfBlob = await generatePDFReportFromIds(resumeId, jdId);
+      const filename = `skill_gap_report_${new Date().toISOString().split("T")[0]}.pdf`;
+      downloadPDF(pdfBlob, filename);
+    } catch (err: any) {
+      setError(
+        err.response?.data?.detail || "Failed to generate PDF. Please try again."
+      );
+    } finally {
+      setDownloadingPDF(false);
+    }
+  };
+
+  const handleDownloadCSV = () => {
+    if (!report) return;
+
+    setDownloadingCSV(true);
+    try {
+      const csvContent = exportToCSV(report);
+      const filename = `skill_gap_report_${new Date().toISOString().split("T")[0]}.csv`;
+      downloadCSV(csvContent, filename);
+    } catch (err: any) {
+      setError("Failed to generate CSV. Please try again.");
+    } finally {
+      setDownloadingCSV(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
@@ -134,6 +187,14 @@ function ResultsDashboardContent() {
   return (
     <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
       <div className="space-y-8">
+        {/* Download Actions */}
+        <DownloadActions
+          onDownloadPDF={handleDownloadPDF}
+          onDownloadCSV={handleDownloadCSV}
+          downloadingPDF={downloadingPDF}
+          downloadingCSV={downloadingCSV}
+        />
+
         {/* Fit Score Display */}
         <FitScoreDisplay fitScore={report.fit_score} />
 
@@ -170,6 +231,11 @@ function ResultsDashboardContent() {
 
         {/* Recommendations */}
         <RecommendationsSection recommendations={report.recommendations} />
+
+        {/* Learning Resources */}
+        {report.learning_resources && report.learning_resources.length > 0 && (
+          <LearningResourcesSection resources={report.learning_resources} />
+        )}
       </div>
     </div>
   );
@@ -474,6 +540,207 @@ function RecommendationsSection({
           </li>
         ))}
       </ul>
+    </div>
+  );
+}
+
+interface DownloadActionsProps {
+  onDownloadPDF: () => void;
+  onDownloadCSV: () => void;
+  downloadingPDF: boolean;
+  downloadingCSV: boolean;
+}
+
+function DownloadActions({
+  onDownloadPDF,
+  onDownloadCSV,
+  downloadingPDF,
+  downloadingCSV,
+}: DownloadActionsProps) {
+  return (
+    <div className="rounded-lg bg-white p-6 shadow-sm ring-1 ring-gray-900/5 dark:bg-gray-800 dark:ring-gray-700">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+            Download Report
+          </h3>
+          <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+            Download your skill gap analysis report in PDF or CSV format
+          </p>
+        </div>
+        <div className="flex flex-col sm:flex-row gap-3">
+          <button
+            onClick={onDownloadPDF}
+            disabled={downloadingPDF}
+            className="inline-flex items-center rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed dark:disabled:bg-gray-700 transition-colors"
+          >
+            {downloadingPDF ? (
+              <>
+                <svg
+                  className="mr-2 h-4 w-4 animate-spin"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  ></circle>
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  ></path>
+                </svg>
+                Generating...
+              </>
+            ) : (
+              <>
+                <svg
+                  className="mr-2 h-4 w-4"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
+                  />
+                </svg>
+                Download PDF
+              </>
+            )}
+          </button>
+          <button
+            onClick={onDownloadCSV}
+            disabled={downloadingCSV}
+            className="inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:bg-gray-100 disabled:cursor-not-allowed dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 dark:disabled:bg-gray-900 transition-colors"
+          >
+            {downloadingCSV ? (
+              <>
+                <svg
+                  className="mr-2 h-4 w-4 animate-spin"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  ></circle>
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  ></path>
+                </svg>
+                Generating...
+              </>
+            ) : (
+              <>
+                <svg
+                  className="mr-2 h-4 w-4"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                  />
+                </svg>
+                Download CSV
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+interface LearningResourcesSectionProps {
+  resources: Array<Record<string, any>>;
+}
+
+function LearningResourcesSection({ resources }: LearningResourcesSectionProps) {
+  return (
+    <div className="rounded-lg bg-white p-6 shadow-sm ring-1 ring-gray-900/5 dark:bg-gray-800 dark:ring-gray-700">
+      <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+        Learning Resources
+      </h3>
+      <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
+        Here are some recommended learning resources to help you close the skill gaps:
+      </p>
+      <div className="space-y-4">
+        {resources.map((resource, index) => (
+          <div
+            key={index}
+            className="border-l-4 border-blue-500 pl-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors"
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex-1">
+                <h4 className="text-base font-semibold text-gray-900 dark:text-white">
+                  {resource.name || "Learning Resource"}
+                </h4>
+                <div className="mt-1 flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                  <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded">
+                    {resource.type || "Course"}
+                  </span>
+                  {resource.platform && (
+                    <span className="text-gray-500 dark:text-gray-400">
+                      • {resource.platform}
+                    </span>
+                  )}
+                </div>
+                {resource.description && (
+                  <p className="mt-2 text-sm text-gray-700 dark:text-gray-300">
+                    {resource.description}
+                  </p>
+                )}
+                {resource.related_skill && (
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    Related to: <span className="font-medium">{resource.related_skill}</span>
+                  </p>
+                )}
+              </div>
+              {resource.url && (
+                <a
+                  href={resource.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center px-3 py-2 text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
+                >
+                  Visit
+                  <svg
+                    className="ml-1 h-4 w-4"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                    />
+                  </svg>
+                </a>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
