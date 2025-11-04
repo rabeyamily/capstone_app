@@ -1,7 +1,13 @@
 # API routes package
 from fastapi import APIRouter
+from app.api import upload, parse, text_input
 
 router = APIRouter()
+
+# Include route modules
+router.include_router(upload.router, prefix="/upload", tags=["upload"])
+router.include_router(parse.router, prefix="/parse", tags=["parse"])
+router.include_router(text_input.router, prefix="/text", tags=["text-input"])
 
 
 @router.get("/test")
