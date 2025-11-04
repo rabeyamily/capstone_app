@@ -366,11 +366,11 @@
 - [x] Step 18: Gap Analysis Module
 - [x] Step 19: Fit Score Calculation
 - [x] Step 20: Comparison API Endpoint
-- [ ] Step 21: Main Layout & Navigation
-- [ ] Step 22: File Upload Component
-- [ ] Step 23: Results Dashboard Component
-- [ ] Step 24: Skill Visualization Components
-- [ ] Step 25: Loading States & Error Handling
+- [x] Step 21: Main Layout & Navigation
+- [x] Step 22: File Upload Component
+- [x] Step 23: Results Dashboard Component
+- [x] Step 24: Skill Visualization Components
+- [x] Step 25: Loading States & Error Handling
 - [ ] Step 26: PDF Report Generation (Backend)
 - [ ] Step 27: Report Content Assembly
 - [ ] Step 28: Report Download Feature (Frontend)
