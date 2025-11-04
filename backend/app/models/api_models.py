@@ -55,3 +55,13 @@ class AnalyzeGapResponse(BaseModel):
     report: SkillGapReport = Field(..., description="Complete gap analysis report")
     analysis_time: float = Field(..., description="Time taken for analysis in seconds")
 
+
+class AnalyzeGapFromTextRequest(BaseModel):
+    """Request model for gap analysis from text or file IDs."""
+    resume_text: Optional[str] = Field(None, description="Resume text (if not using resume_id)")
+    jd_text: Optional[str] = Field(None, description="Job description text (if not using jd_id)")
+    resume_id: Optional[str] = Field(None, description="Resume file ID (if not using resume_text)")
+    jd_id: Optional[str] = Field(None, description="Job description file ID (if not using jd_text)")
+    technical_weight: Optional[float] = Field(None, description="Optional custom weight for technical skills")
+    soft_skills_weight: Optional[float] = Field(None, description="Optional custom weight for soft skills")
+

@@ -362,10 +362,10 @@
 - [ ] Step 14: Soft Skills & Education Extraction Module
 - [ ] Step 15: Skill Extraction API Endpoint
 - [ ] Step 16: Alternative NLP Extraction
-- [ ] Step 17: Skill Matching Algorithm
-- [ ] Step 18: Gap Analysis Module
-- [ ] Step 19: Fit Score Calculation
-- [ ] Step 20: Comparison API Endpoint
+- [x] Step 17: Skill Matching Algorithm
+- [x] Step 18: Gap Analysis Module
+- [x] Step 19: Fit Score Calculation
+- [x] Step 20: Comparison API Endpoint
 - [ ] Step 21: Main Layout & Navigation
 - [ ] Step 22: File Upload Component
 - [ ] Step 23: Results Dashboard Component
