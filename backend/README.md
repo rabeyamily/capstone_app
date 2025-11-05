@@ -1,6 +1,6 @@
-# Backend - Resume Job Skill Gap Analyzer API
+# Backend - SkilledU API
 
-FastAPI backend application for the Resume Job Skill Gap Analyzer project.
+FastAPI backend application for the SkilledU project.
 
 ## Setup
 

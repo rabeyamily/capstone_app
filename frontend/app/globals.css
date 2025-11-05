@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
+  --background: #FFF8F0;
   --foreground: #171717;
 }
 
@@ -10,12 +10,71 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-serif: var(--font-lora);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;
     --foreground: #ededed;
+  }
+}
+
+@keyframes roll {
+  from {
+    transform: translateY(-50%) translateX(0) rotate(0deg);
+  }
+  to {
+    transform: translateY(-50%) translateX(0.875rem) rotate(360deg);
+  }
+}
+
+@keyframes rollReverse {
+  from {
+    transform: translateY(-50%) translateX(0) rotate(0deg);
+  }
+  to {
+    transform: translateY(-50%) translateX(-0.875rem) rotate(-360deg);
+  }
+}
+
+@keyframes ballToOrange {
+  from {
+    background-color: rgb(234 88 12);
+    border-color: rgb(234 88 12);
+  }
+  to {
+    background-color: rgb(251 146 60);
+    border-color: rgb(234 88 12);
+  }
+}
+
+@keyframes ballFromOrange {
+  from {
+    background-color: rgb(251 146 60);
+    border-color: rgb(234 88 12);
+  }
+  to {
+    background-color: rgb(234 88 12);
+    border-color: rgb(234 88 12);
+  }
+}
+
+@keyframes purpleFill {
+  from {
+    width: 0%;
+  }
+  to {
+    width: calc(100% - 0.5rem);
+  }
+}
+
+@keyframes purpleFillReverse {
+  from {
+    width: calc(100% - 0.5rem);
+  }
+  to {
+    width: 0%;
   }
 }
 

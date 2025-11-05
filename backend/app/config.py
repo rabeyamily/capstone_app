@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     openai_api_key: str = ""
     
     # Application Settings
-    app_name: str = "Resume Job Skill Gap Analyzer"
+    app_name: str = "SkilledU"
     app_version: str = "1.0.0"
     debug: bool = True
     
@@ -28,9 +28,10 @@ class Settings(BaseSettings):
     allowed_extensions: str = ".pdf,.docx,.txt"
     
     # LLM Settings
-    llm_model: str = "gpt-4-turbo-preview"
+    # Model options: gpt-4o (recommended), gpt-4-turbo, gpt-3.5-turbo
+    llm_model: str = "gpt-4o"
     llm_temperature: float = 0.3
-    llm_max_tokens: int = 2000
+    llm_max_tokens: int = 1500  # Reduced from 2000 to speed up responses
     
     # NLP Settings
     spacy_model: str = "en_core_web_sm"

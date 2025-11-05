@@ -1,6 +1,6 @@
-# Frontend - Resume Job Skill Gap Analyzer
+# Frontend - SkilledU
 
-Next.js frontend application for the Resume Job Skill Gap Analyzer project.
+Next.js frontend application for the SkilledU project.
 
 ## Setup
 
@@ -43,8 +43,8 @@ frontend/
 ├── services/              # API services
 │   └── api.ts            # Axios API client
 ├── utils/                 # Utility functions
-│   └── helpers.ts        # Helper functions
-├── styles/                # Additional styles
+│   ├── types.ts         # TypeScript type definitions
+│   └── export.ts        # Export utilities (CSV, PDF)
 ├── public/               # Static assets
 └── package.json          # Dependencies
 ```

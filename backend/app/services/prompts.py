@@ -157,22 +157,24 @@ Return only valid JSON, no additional text or explanation."""
         """
         system_prompt = """You are an expert at extracting technical skills from resumes and job descriptions.
 Focus on programming languages, frameworks, tools, databases, cloud services, DevOps, and technical concepts.
-Extract only concrete technical skills that are explicitly mentioned."""
+Extract only concrete technical skills that are explicitly mentioned. You must respond in valid JSON format."""
         
         user_prompt = f"""Extract all technical skills from the following text. 
 Include: programming languages, frameworks, libraries, tools, platforms, databases, cloud services, DevOps tools, and technical concepts.
 
-Return as JSON array:
-[
-    {{"name": "Python", "category": "programming_languages"}},
-    {{"name": "Docker", "category": "tools_platforms"}},
-    ...
-]
+You must respond with a valid JSON object containing a "skills" array:
+{{
+    "skills": [
+        {{"name": "Python", "category": "programming_languages"}},
+        {{"name": "Docker", "category": "tools_platforms"}},
+        ...
+    ]
+}}
 
 TEXT:
 {text}
 
-Return only valid JSON array."""
+Return only valid JSON object with a "skills" key containing an array."""
         
         return [
             {"role": "system", "content": system_prompt},
@@ -191,21 +193,23 @@ Return only valid JSON array."""
             List of message dictionaries for LLM API
         """
         system_prompt = """You are an expert at extracting soft skills and interpersonal competencies from resumes and job descriptions.
-Focus on leadership, communication, collaboration, problem-solving, and analytical thinking skills."""
+Focus on leadership, communication, collaboration, problem-solving, and analytical thinking skills. You must respond in valid JSON format."""
         
         user_prompt = f"""Extract all soft skills and interpersonal competencies from the following text.
 
-Return as JSON array:
-[
-    {{"name": "Leadership", "category": "leadership"}},
-    {{"name": "Communication", "category": "communication"}},
-    ...
-]
+You must respond with a valid JSON object containing a "skills" array:
+{{
+    "skills": [
+        {{"name": "Leadership", "category": "leadership"}},
+        {{"name": "Communication", "category": "communication"}},
+        ...
+    ]
+}}
 
 TEXT:
 {text}
 
-Return only valid JSON array."""
+Return only valid JSON object with a "skills" key containing an array."""
         
         return [
             {"role": "system", "content": system_prompt},
@@ -224,20 +228,22 @@ Return only valid JSON array."""
             List of message dictionaries for LLM API
         """
         system_prompt = """You are an expert at extracting education requirements and qualifications from resumes and job descriptions.
-Identify degree types (Bachelor's, Master's, PhD, etc.) and fields of study."""
+Identify degree types (Bachelor's, Master's, PhD, etc.) and fields of study. You must respond in valid JSON format."""
         
         user_prompt = f"""Extract all education requirements and qualifications from the following text.
 
-Return as JSON array:
-[
-    {{"degree": "Bachelor's", "field": "Computer Science", "required": true, "preferred": false}},
-    ...
-]
+You must respond with a valid JSON object containing an "education" array:
+{{
+    "education": [
+        {{"degree": "Bachelor's", "field": "Computer Science", "required": true, "preferred": false}},
+        ...
+    ]
+}}
 
 TEXT:
 {text}
 
-Return only valid JSON array."""
+Return only valid JSON object with an "education" key containing an array."""
         
         return [
             {"role": "system", "content": system_prompt},
@@ -256,20 +262,22 @@ Return only valid JSON array."""
             List of message dictionaries for LLM API
         """
         system_prompt = """You are an expert at extracting professional certifications from resumes and job descriptions.
-Identify certification names and issuing organizations."""
+Identify certification names and issuing organizations. You must respond in valid JSON format."""
         
         user_prompt = f"""Extract all certifications from the following text.
 
-Return as JSON array:
-[
-    {{"name": "AWS Certified Solutions Architect", "issuer": "AWS", "required": false, "preferred": true}},
-    ...
-]
+You must respond with a valid JSON object containing a "certifications" array:
+{{
+    "certifications": [
+        {{"name": "AWS Certified Solutions Architect", "issuer": "AWS", "required": false, "preferred": true}},
+        ...
+    ]
+}}
 
 TEXT:
 {text}
 
-Return only valid JSON array."""
+Return only valid JSON object with a "certifications" key containing an array."""
         
         return [
             {"role": "system", "content": system_prompt},

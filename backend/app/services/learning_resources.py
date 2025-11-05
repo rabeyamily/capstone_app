@@ -1,275 +1,151 @@
 """
 Learning Resources Service - Provides course recommendations based on missing skills.
+Uses LLM to intelligently find courses from Coursera, freeCodeCamp, Udemy, and similar platforms.
 """
 from typing import List, Dict, Any, Optional
 from app.models.schemas import Skill, GapAnalysis
 from app.models.skill_taxonomy import SkillCategory
+from app.services.llm_service import llm_service
 
 
 class LearningResourcesService:
-    """Service for recommending learning resources based on skill gaps."""
-
-    # Curated learning resources database
-    # Structure: {skill_name: [resource_dict]}
-    LEARNING_RESOURCES_DB: Dict[str, List[Dict[str, Any]]] = {
-        # Programming Languages
-        "python": [
-            {
-                "name": "Python for Everybody Specialization",
-                "type": "Course",
-                "platform": "Coursera",
-                "url": "https://www.coursera.org/specializations/python",
-                "description": "Learn Python programming fundamentals and data structures",
-                "skill_category": "programming_languages",
-            },
-            {
-                "name": "Complete Python Bootcamp",
-                "type": "Course",
-                "platform": "Udemy",
-                "url": "https://www.udemy.com/course/complete-python-bootcamp/",
-                "description": "Comprehensive Python course from beginner to advanced",
-                "skill_category": "programming_languages",
-            },
-        ],
-        "javascript": [
-            {
-                "name": "JavaScript: The Complete Guide",
-                "type": "Course",
-                "platform": "Udemy",
-                "url": "https://www.udemy.com/course/javascript-the-complete-guide/",
-                "description": "Master JavaScript from basics to advanced concepts",
-                "skill_category": "programming_languages",
-            },
-            {
-                "name": "Full Stack JavaScript",
-                "type": "Course",
-                "platform": "freeCodeCamp",
-                "url": "https://www.freecodecamp.org/learn/javascript-algorithms-and-data-structures/",
-                "description": "Free comprehensive JavaScript course",
-                "skill_category": "programming_languages",
-            },
-        ],
-        "java": [
-            {
-                "name": "Java Programming and Software Engineering Fundamentals",
-                "type": "Course",
-                "platform": "Coursera",
-                "url": "https://www.coursera.org/specializations/java-programming",
-                "description": "Learn Java programming and software engineering principles",
-                "skill_category": "programming_languages",
-            },
-        ],
-        "typescript": [
-            {
-                "name": "Understanding TypeScript",
-                "type": "Course",
-                "platform": "Udemy",
-                "url": "https://www.udemy.com/course/understanding-typescript/",
-                "description": "Deep dive into TypeScript features and best practices",
-                "skill_category": "programming_languages",
-            },
-        ],
-        # Frameworks
-        "react": [
-            {
-                "name": "React - The Complete Guide",
-                "type": "Course",
-                "platform": "Udemy",
-                "url": "https://www.udemy.com/course/react-the-complete-guide-incl-redux/",
-                "description": "Comprehensive React course including hooks, Redux, and more",
-                "skill_category": "frameworks_libraries",
-            },
-            {
-                "name": "React Documentation",
-                "type": "Documentation",
-                "platform": "Official",
-                "url": "https://react.dev/",
-                "description": "Official React documentation and tutorials",
-                "skill_category": "frameworks_libraries",
-            },
-        ],
-        "django": [
-            {
-                "name": "Django for Everybody Specialization",
-                "type": "Course",
-                "platform": "Coursera",
-                "url": "https://www.coursera.org/specializations/django",
-                "description": "Learn Django web framework for Python",
-                "skill_category": "frameworks_libraries",
-            },
-        ],
-        "spring boot": [
-            {
-                "name": "Spring Boot - Complete Guide",
-                "type": "Course",
-                "platform": "Udemy",
-                "url": "https://www.udemy.com/course/spring-boot-tutorial-for-beginners/",
-                "description": "Master Spring Boot framework for Java development",
-                "skill_category": "frameworks_libraries",
-            },
-        ],
-        # Cloud Services
-        "aws": [
-            {
-                "name": "AWS Certified Solutions Architect",
-                "type": "Certification",
-                "platform": "AWS",
-                "url": "https://aws.amazon.com/certification/certified-solutions-architect-associate/",
-                "description": "Official AWS certification training",
-                "skill_category": "cloud_services",
-            },
-            {
-                "name": "AWS Cloud Practitioner",
-                "type": "Course",
-                "platform": "Coursera",
-                "url": "https://www.coursera.org/learn/aws-cloud-technical-essentials",
-                "description": "Learn AWS fundamentals and cloud concepts",
-                "skill_category": "cloud_services",
-            },
-        ],
-        "docker": [
-            {
-                "name": "Docker Mastery",
-                "type": "Course",
-                "platform": "Udemy",
-                "url": "https://www.udemy.com/course/docker-mastery/",
-                "description": "Complete Docker containerization course",
-                "skill_category": "devops",
-            },
-        ],
-        "kubernetes": [
-            {
-                "name": "Kubernetes for the Absolute Beginners",
-                "type": "Course",
-                "platform": "Udemy",
-                "url": "https://www.udemy.com/course/learn-kubernetes/",
-                "description": "Learn Kubernetes orchestration from scratch",
-                "skill_category": "devops",
-            },
-        ],
-        # Databases
-        "postgresql": [
-            {
-                "name": "PostgreSQL for Everybody",
-                "type": "Course",
-                "platform": "Coursera",
-                "url": "https://www.coursera.org/learn/postgresql-database-server",
-                "description": "Learn PostgreSQL database administration",
-                "skill_category": "databases",
-            },
-        ],
-        "mongodb": [
-            {
-                "name": "MongoDB University",
-                "type": "Course",
-                "platform": "MongoDB",
-                "url": "https://university.mongodb.com/",
-                "description": "Free MongoDB courses and certifications",
-                "skill_category": "databases",
-            },
-        ],
-        # Machine Learning
-        "machine learning": [
-            {
-                "name": "Machine Learning Specialization",
-                "type": "Course",
-                "platform": "Coursera",
-                "url": "https://www.coursera.org/specializations/machine-learning-introduction",
-                "description": "Andrew Ng's famous machine learning course",
-                "skill_category": "machine_learning",
-            },
-        ],
-        "tensorflow": [
-            {
-                "name": "TensorFlow Developer Certificate",
-                "type": "Certification",
-                "platform": "TensorFlow",
-                "url": "https://www.tensorflow.org/certificate",
-                "description": "Official TensorFlow certification program",
-                "skill_category": "machine_learning",
-            },
-        ],
-        # Soft Skills
-        "leadership": [
-            {
-                "name": "Leading People and Teams Specialization",
-                "type": "Course",
-                "platform": "Coursera",
-                "url": "https://www.coursera.org/specializations/leading-people-teams",
-                "description": "Develop leadership and team management skills",
-                "skill_category": "leadership",
-            },
-        ],
-        "communication": [
-            {
-                "name": "Effective Communication",
-                "type": "Course",
-                "platform": "Coursera",
-                "url": "https://www.coursera.org/learn/wharton-communication",
-                "description": "Improve workplace communication skills",
-                "skill_category": "communication",
-            },
-        ],
-        # Methodologies
-        "agile": [
-            {
-                "name": "Agile Development Specialization",
-                "type": "Course",
-                "platform": "Coursera",
-                "url": "https://www.coursera.org/specializations/agile-development",
-                "description": "Learn Agile methodologies and practices",
-                "skill_category": "agile",
-            },
-        ],
-        "scrum": [
-            {
-                "name": "Certified ScrumMaster",
-                "type": "Certification",
-                "platform": "Scrum Alliance",
-                "url": "https://www.scrumalliance.org/get-certified",
-                "description": "Professional Scrum certification",
-                "skill_category": "scrum",
-            },
-        ],
-    }
+    """Service for recommending learning resources based on skill gaps using LLM."""
 
     @staticmethod
-    def normalize_skill_name(skill_name: str) -> str:
-        """Normalize skill name for matching."""
-        return skill_name.lower().strip()
+    def _build_course_search_prompt(skill: Skill) -> List[Dict[str, str]]:
+        """Build prompt for LLM to search for courses."""
+        prompt = f"""Find 3-5 real, currently available online courses or learning resources for learning "{skill.name}" (category: {skill.category.value}).
+
+Focus on these platforms:
+- Coursera (coursera.org)
+- freeCodeCamp (freecodecamp.org)
+- Udemy (udemy.com)
+- edX (edx.org)
+- Khan Academy (khanacademy.org)
+- Codecademy (codecademy.com)
+- Pluralsight (pluralsight.com)
+- LinkedIn Learning (linkedin.com/learning)
+- Official documentation/tutorials
+
+For each course, provide:
+- Exact course name
+- Platform name
+- URL (use actual URLs if you know them, or construct realistic ones based on platform patterns)
+- Brief description (1-2 sentences)
+
+Return ONLY valid JSON in this format:
+{{
+    "resources": [
+        {{
+            "name": "Course Name",
+            "platform": "Platform Name",
+            "url": "https://platform.com/course-url",
+            "description": "Course description",
+            "type": "Course" or "Certification" or "Tutorial"
+        }}
+    ]
+}}
+
+Important:
+- Use real, well-known courses when possible
+- URLs should be realistic and follow platform URL patterns
+- Prioritize free or accessible courses
+- Include a mix of beginner and intermediate options
+- If you don't know exact URLs, use format: "https://platform.com/search?q=skill-name" or similar"""
+
+        return [
+            {
+                "role": "system",
+                "content": "You are an expert at finding online learning resources. You know about courses from Coursera, freeCodeCamp, Udemy, edX, and other major learning platforms. Always provide real, helpful course recommendations."
+            },
+            {
+                "role": "user",
+                "content": prompt
+            }
+        ]
+
+    @staticmethod
+    def _find_courses_with_llm(skill: Skill) -> List[Dict[str, Any]]:
+        """
+        Use LLM to find courses for a skill.
+        
+        Args:
+            skill: Skill to find courses for
+            
+        Returns:
+            List of course resources
+        """
+        if not llm_service.is_configured():
+            return []
+
+        try:
+            prompt = LearningResourcesService._build_course_search_prompt(skill)
+            response = llm_service.call_api(
+                messages=prompt,
+                response_format={"type": "json_object"},
+                temperature=0.7,  # Slightly higher for creativity
+                max_tokens=1000
+            )
+            
+            content = response.get("content", "")
+            if not content:
+                return []
+            
+            # Parse JSON response
+            data = llm_service.extract_json_response(content)
+            resources = data.get("resources", [])
+            
+            # Validate and format resources
+            formatted_resources = []
+            for resource in resources:
+                if not isinstance(resource, dict):
+                    continue
+                    
+                # Ensure required fields
+                formatted_resource = {
+                    "name": resource.get("name", ""),
+                    "platform": resource.get("platform", "Unknown"),
+                    "url": resource.get("url", ""),
+                    "description": resource.get("description", f"Learn {skill.name}"),
+                    "type": resource.get("type", "Course"),
+                    "skill_category": skill.category.value,
+                    "source": "llm"
+                }
+                
+                # Only add if has name and URL
+                if formatted_resource["name"] and formatted_resource["url"]:
+                    formatted_resources.append(formatted_resource)
+            
+            return formatted_resources[:5]  # Limit to 5
+            
+        except Exception as e:
+            print(f"[LearningResources] LLM search error for '{skill.name}': {e}")
+            return []
 
     @staticmethod
     def find_resources_for_skill(skill: Skill) -> List[Dict[str, Any]]:
-        """Find learning resources for a specific skill."""
-        normalized_name = LearningResourcesService.normalize_skill_name(skill.name)
+        """
+        Find learning resources for a specific skill using LLM.
         
-        # Direct match
-        if normalized_name in LearningResourcesService.LEARNING_RESOURCES_DB:
-            return LearningResourcesService.LEARNING_RESOURCES_DB[normalized_name].copy()
+        Args:
+            skill: Skill to find courses for
+            
+        Returns:
+            List of course resources from LLM
+        """
+        # Use LLM to find courses
+        resources = LearningResourcesService._find_courses_with_llm(skill)
         
-        # Partial match (check if skill name contains key or vice versa)
-        resources = []
-        for key, resource_list in LearningResourcesService.LEARNING_RESOURCES_DB.items():
-            if key in normalized_name or normalized_name in key:
-                resources.extend(resource_list)
-        
-        # Category-based match
-        if not resources:
-            for key, resource_list in LearningResourcesService.LEARNING_RESOURCES_DB.items():
-                for resource in resource_list:
-                    if resource.get("skill_category") == skill.category.value:
-                        resources.append(resource)
-        
-        # Remove duplicates
-        seen = set()
+        # Remove duplicates by URL
+        seen_urls = set()
         unique_resources = []
         for resource in resources:
-            resource_key = (resource.get("name"), resource.get("url"))
-            if resource_key not in seen:
-                seen.add(resource_key)
+            url = resource.get("url", "")
+            if url and url not in seen_urls:
+                seen_urls.add(url)
                 unique_resources.append(resource)
         
-        return unique_resources[:3]  # Limit to 3 resources per skill
+        return unique_resources[:5]  # Limit to 5 resources per skill
 
     @staticmethod
     def generate_recommendations(
@@ -278,6 +154,7 @@ class LearningResourcesService:
     ) -> List[Dict[str, Any]]:
         """
         Generate learning resource recommendations based on missing skills.
+        Uses LLM to intelligently find courses from Coursera, freeCodeCamp, Udemy, etc.
 
         Args:
             gap_analysis: The gap analysis result
@@ -315,7 +192,7 @@ class LearningResourcesService:
 
         sorted_skills = sorted(missing_skills, key=get_priority)
 
-        # Collect resources for each missing skill
+        # Collect resources for each missing skill (LLM will be called here)
         for skill in sorted_skills:
             if len(recommendations) >= max_resources:
                 break
@@ -331,35 +208,6 @@ class LearningResourcesService:
                     resource_copy["related_skill"] = skill.name
                     recommendations.append(resource_copy)
                     
-                    if len(recommendations) >= max_resources:
-                        break
-
-        # If we don't have enough resources, add general resources
-        if len(recommendations) < max_resources:
-            general_resources = [
-                {
-                    "name": "Technical Interview Prep",
-                    "type": "Course",
-                    "platform": "LeetCode",
-                    "url": "https://leetcode.com/",
-                    "description": "Practice coding interview problems",
-                    "skill_category": "other",
-                },
-                {
-                    "name": "Git and GitHub",
-                    "type": "Course",
-                    "platform": "freeCodeCamp",
-                    "url": "https://www.freecodecamp.org/learn",
-                    "description": "Learn version control with Git",
-                    "skill_category": "tools_platforms",
-                },
-            ]
-            
-            for resource in general_resources:
-                resource_key = (resource.get("name"), resource.get("url"))
-                if resource_key not in seen_resources:
-                    seen_resources.add(resource_key)
-                    recommendations.append(resource)
                     if len(recommendations) >= max_resources:
                         break
 

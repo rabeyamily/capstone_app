@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Dancing_Script, Lora } from "next/font/google";
 import "./globals.css";
 import MainLayout from "@/components/MainLayout";
+import { ThemeProvider } from "@/components/ThemeProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -13,8 +14,18 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const dancingScript = Dancing_Script({
+  variable: "--font-dancing-script",
+  subsets: ["latin"],
+});
+
+const lora = Lora({
+  variable: "--font-lora",
+  subsets: ["latin"],
+});
+
 export const metadata: Metadata = {
-  title: "Skill Gap Analyzer | AI-Powered Resume Analysis",
+  title: "SkilledU | AI-Powered Resume & Job Skill Gap Analysis",
   description:
     "Analyze your resume against job descriptions to identify skill gaps and improve your career prospects.",
 };
@@ -25,11 +36,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} ${dancingScript.variable} ${lora.variable} antialiased`}
+        suppressHydrationWarning
       >
-        <MainLayout>{children}</MainLayout>
+        <ThemeProvider>
+          <MainLayout>{children}</MainLayout>
+        </ThemeProvider>
       </body>
     </html>
   );

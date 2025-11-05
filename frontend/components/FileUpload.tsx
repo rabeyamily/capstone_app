@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState, useRef } from "react";
+import { useCallback, useState, useRef, useEffect } from "react";
 import apiClient from "@/services/api";
 import { UploadResumeResponse, TextInputResponse } from "@/utils/types";
 import { LoadingSpinner, ErrorDisplay } from "./LoadingStates";
@@ -32,7 +32,11 @@ export default function FileUpload({
   } | null>(null);
   const [textInput, setTextInput] = useState("");
   const [submittingText, setSubmittingText] = useState(false);
+  const [submittedTextId, setSubmittedTextId] = useState<string | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const textSubmitTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const handleTextSubmitRef = useRef<(() => Promise<void>) | null>(null);
 
   const validateFile = (file: File): string | null => {
     // Check file type
@@ -84,6 +88,36 @@ export default function FileUpload({
       });
       onUploadSuccess(response.data.file_id, response.data.filename);
       setProgress(100);
+      
+      // Clear text input when file is uploaded
+      setTextInput("");
+      setSubmittedTextId(null);
+      if (textSubmitTimeoutRef.current) {
+        clearTimeout(textSubmitTimeoutRef.current);
+        textSubmitTimeoutRef.current = null;
+      }
+      
+      // Store file ID in sessionStorage for fallback
+      sessionStorage.setItem(`${sourceType}_file_id`, response.data.file_id);
+      
+      // Try to get parsed text from backend and store it for fallback
+      try {
+        // First parse the file
+        await apiClient.post(`/api/parse/parse/${response.data.file_id}`);
+        
+        // Wait a bit for backend to process
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Then get the parsed text
+        const textResponse = await apiClient.get(`/api/parse/parse/${response.data.file_id}/text`);
+        if (textResponse.data.text) {
+          sessionStorage.setItem(`${sourceType}_text_${response.data.file_id}`, textResponse.data.text);
+          sessionStorage.setItem(`${sourceType}_text`, textResponse.data.text);
+        }
+      } catch (parseErr) {
+        // If parsing fails, that's okay - we'll rely on file ID
+        console.log(`[FileUpload] Could not fetch parsed text for ${response.data.file_id}:`, parseErr);
+      }
     } catch (err: any) {
       setError(
         err.response?.data?.detail || "Failed to upload file. Please try again."
@@ -139,14 +173,23 @@ export default function FileUpload({
     }
   };
 
-  const handleTextSubmit = async () => {
+  const handleTextSubmit = useCallback(async () => {
     if (!textInput.trim() || textInput.trim().length < 10) {
-      setError("Text must be at least 10 characters long");
-      return;
+      return; // Don't submit if text is too short
+    }
+
+    // Prevent multiple submissions of the same text
+    if (submittedTextId && textInput.trim() === sessionStorage.getItem(`${sourceType}_text_${submittedTextId}`)) {
+      return; // Already submitted this text
     }
 
     setSubmittingText(true);
     setError(null);
+
+    // Add timeout to prevent hanging (10 seconds)
+    const timeout = 10000;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
 
     try {
       const response = await apiClient.post<TextInputResponse>(
@@ -154,27 +197,114 @@ export default function FileUpload({
         {
           text: textInput,
           source_type: sourceType,
+        },
+        {
+          signal: controller.signal,
+          timeout: timeout,
         }
       );
 
+      clearTimeout(timeoutId);
+
+      setSubmittedTextId(response.data.text_id);
       onTextSubmit(response.data.text_id);
-      setTextInput("");
-    } catch (err: any) {
-      setError(
-        err.response?.data?.detail || "Failed to submit text. Please try again."
-      );
-    } finally {
+      // Don't clear textInput - keep it editable
+      
+      // Clear uploaded file when text is submitted
+      setUploadedFile(null);
+      setProgress(0);
+      
+      // Store text content in sessionStorage as fallback
+      sessionStorage.setItem(`${sourceType}_text_${response.data.text_id}`, textInput);
+      sessionStorage.setItem(`${sourceType}_text`, textInput); // Also store with generic key
       setSubmittingText(false);
+    } catch (err: any) {
+      clearTimeout(timeoutId);
+      
+      // Handle timeout
+      if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {
+        setError("Text submission timed out. Please try again.");
+      } else {
+        setError(
+          err.response?.data?.detail || "Failed to submit text. Please try again."
+        );
+      }
+      
+      // Reset submitting state on error
+      setSubmittingText(false);
+    }
+  }, [textInput, sourceType, onTextSubmit, submittedTextId]);
+
+  // Update ref whenever handleTextSubmit changes
+  useEffect(() => {
+    handleTextSubmitRef.current = handleTextSubmit;
+  }, [handleTextSubmit]);
+
+  // Auto-submit text with debounce
+  useEffect(() => {
+    // Clear any existing timeout
+    if (textSubmitTimeoutRef.current) {
+      clearTimeout(textSubmitTimeoutRef.current);
+    }
+
+    // Don't auto-submit if already submitted with same text
+    const currentStoredText = submittedTextId 
+      ? sessionStorage.getItem(`${sourceType}_text_${submittedTextId}`)
+      : null;
+    
+    if (currentStoredText === textInput.trim()) {
+      return; // Already submitted this exact text
+    }
+
+    // Only auto-submit if:
+    // - Text is valid (at least 10 chars)
+    // - Not currently submitting
+    // - No file uploaded
+    // - Text hasn't been submitted yet or has changed
+    if (
+      textInput.trim().length >= 10 &&
+      !submittingText &&
+      !uploadedFile &&
+      textInput.trim() !== currentStoredText
+    ) {
+      // Debounce: wait 1.5 seconds after user stops typing
+      textSubmitTimeoutRef.current = setTimeout(() => {
+        // Call handleTextSubmit via ref to avoid dependency issues
+        if (handleTextSubmitRef.current) {
+          handleTextSubmitRef.current();
+        }
+      }, 1500);
+    }
+
+    // Cleanup timeout on unmount or when dependencies change
+    return () => {
+      if (textSubmitTimeoutRef.current) {
+        clearTimeout(textSubmitTimeoutRef.current);
+      }
+    };
+  }, [textInput, submittingText, uploadedFile, submittedTextId, sourceType]);
+
+  const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const newValue = e.target.value;
+    setTextInput(newValue);
+    setError(null);
+    // Reset submitted ID when text changes so we can resubmit
+    if (submittedTextId) {
+      setSubmittedTextId(null);
     }
   };
 
   const handleClear = () => {
     setUploadedFile(null);
     setTextInput("");
+    setSubmittedTextId(null);
     setError(null);
     setProgress(0);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
+    }
+    if (textSubmitTimeoutRef.current) {
+      clearTimeout(textSubmitTimeoutRef.current);
     }
   };
 
@@ -185,107 +315,103 @@ export default function FileUpload({
       </label>
 
       {/* File Upload Area */}
-      <div
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
-        className={`relative border-2 border-dashed rounded-lg p-8 transition-colors ${
-          isDragging
-            ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20"
-            : "border-gray-300 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-600"
-        }`}
-      >
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept={acceptedTypes.join(",")}
-          onChange={handleFileSelect}
-          className="hidden"
-          disabled={uploading || submittingText}
-        />
+          <div
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            onClick={() => {
+              // Make entire box clickable to trigger file upload
+              if (!uploadedFile && !uploading && !submittingText) {
+                fileInputRef.current?.click();
+              }
+            }}
+            className={`relative border-2 border-dashed rounded-lg p-2 transition-all duration-300 ${
+              isDragging
+                ? "border-orange-600 bg-orange-50 dark:bg-orange-900/20 shadow-lg"
+                : uploadedFile || uploading || submittingText
+                ? "border-gray-300 dark:border-gray-700"
+                : "border-gray-300 dark:border-gray-700 hover:border-orange-500 dark:hover:border-orange-600 hover:shadow-md cursor-pointer"
+            }`}
+          >
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept={acceptedTypes.join(",")}
+              onChange={handleFileSelect}
+              className="hidden"
+              disabled={uploading || submittingText}
+            />
 
-        {uploadedFile ? (
-          <div className="text-center">
-            <div className="flex items-center justify-center">
-              <svg
-                className="h-12 w-12 text-green-500"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
-            </div>
-            <p className="mt-2 text-sm font-medium text-gray-900 dark:text-white">
-              {uploadedFile.name}
-            </p>
-            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-              File uploaded successfully
-            </p>
-            <button
-              onClick={handleClear}
-              className="mt-4 text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
-            >
-              Clear and upload different file
-            </button>
+            {uploadedFile ? (
+              <div className="text-center">
+                <div className="flex items-center justify-center">
+                  <svg
+                    className="h-6 w-6 text-green-500"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
+                  </svg>
+                </div>
+                <p className="mt-1 text-xs font-medium text-gray-900 dark:text-white truncate">
+                  {uploadedFile.name}
+                </p>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation(); // Prevent triggering file input
+                    handleClear();
+                  }}
+                  className="mt-1 text-xs text-orange-600 hover:text-orange-500 dark:text-orange-400 dark:hover:text-orange-300 transition-colors"
+                >
+                  Clear
+                </button>
+              </div>
+            ) : uploading ? (
+              <div className="text-center">
+                <LoadingSpinner size="sm" text="" />
+                <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
+                  <div
+                    className="h-full bg-gradient-to-r from-orange-600 to-orange-500 transition-all duration-300"
+                    style={{ width: `${progress}%` }}
+                  ></div>
+                </div>
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  {progress}%
+                </p>
+              </div>
+            ) : (
+              <div className="text-center">
+                <svg
+                  className="mx-auto h-6 w-6 text-gray-400"
+                  stroke="currentColor"
+                  fill="none"
+                  viewBox="0 0 48 48"
+                >
+                  <path
+                    d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02"
+                    strokeWidth={2}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+                <div className="mt-1 flex text-xs leading-4 text-gray-600 dark:text-gray-400 justify-center flex-wrap">
+                  <span className="font-semibold text-orange-600 dark:text-orange-400">
+                    Click to upload
+                  </span>
+                  <span className="pl-1">or drag</span>
+                </div>
+                <p className="mt-0.5 text-xs leading-3 text-gray-500 dark:text-gray-500">
+                  {acceptedTypes.join(", ")} up to {maxSizeMB}MB
+                </p>
+              </div>
+            )}
           </div>
-        ) : uploading ? (
-          <div className="text-center">
-            <LoadingSpinner size="lg" text="Uploading..." />
-            <div className="mt-4 h-2 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
-              <div
-                className="h-full bg-blue-600 transition-all duration-300"
-                style={{ width: `${progress}%` }}
-              ></div>
-            </div>
-            <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-              {progress}%
-            </p>
-          </div>
-        ) : (
-          <div className="text-center">
-            <svg
-              className="mx-auto h-12 w-12 text-gray-400"
-              stroke="currentColor"
-              fill="none"
-              viewBox="0 0 48 48"
-            >
-              <path
-                d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02"
-                strokeWidth={2}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-            <div className="mt-4 flex text-sm leading-6 text-gray-600 dark:text-gray-400">
-              <label
-                htmlFor={`file-upload-${sourceType}`}
-                className="relative cursor-pointer rounded-md font-semibold text-blue-600 focus-within:outline-none focus-within:ring-2 focus-within:ring-blue-600 focus-within:ring-offset-2 hover:text-blue-500 dark:text-blue-400"
-              >
-                <span>Upload a file</span>
-                <input
-                  id={`file-upload-${sourceType}`}
-                  name={`file-upload-${sourceType}`}
-                  type="file"
-                  accept={acceptedTypes.join(",")}
-                  onChange={handleFileSelect}
-                  className="sr-only"
-                  disabled={uploading || submittingText}
-                />
-              </label>
-              <p className="pl-1">or drag and drop</p>
-            </div>
-            <p className="mt-2 text-xs leading-5 text-gray-600 dark:text-gray-400">
-              {acceptedTypes.join(", ")} up to {maxSizeMB}MB
-            </p>
-          </div>
-        )}
-      </div>
 
       {/* Divider */}
       <div className="relative">
@@ -299,42 +425,109 @@ export default function FileUpload({
         </div>
       </div>
 
-      {/* Text Input Area */}
-      <div>
-        <label
-          htmlFor={`text-input-${sourceType}`}
-          className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
-        >
-          Paste {sourceType === "resume" ? "resume" : "job description"} text
-        </label>
-        <textarea
-          id={`text-input-${sourceType}`}
-          rows={8}
-          value={textInput}
-          onChange={(e) => setTextInput(e.target.value)}
+      {/* Text Input Button */}
+      <div className="flex justify-center">
+        <button
+          type="button"
+          onClick={() => setIsModalOpen(true)}
           disabled={uploading || submittingText || !!uploadedFile}
-          placeholder={`Paste your ${sourceType === "resume" ? "resume" : "job description"} text here...`}
-          className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white sm:text-sm disabled:bg-gray-100 dark:disabled:bg-gray-900"
-        />
-        <div className="mt-2 flex items-center justify-between">
-          <p className="text-xs text-gray-500 dark:text-gray-400">
-            {textInput.length} characters
-          </p>
-          <button
-            onClick={handleTextSubmit}
-            disabled={
-              !textInput.trim() ||
-              textInput.trim().length < 10 ||
-              submittingText ||
-              uploading ||
-              !!uploadedFile
-            }
-            className="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed dark:disabled:bg-gray-700"
-          >
-            {submittingText ? "Submitting..." : "Submit Text"}
-          </button>
-        </div>
+          className="rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-1.5 text-xs font-medium text-gray-700 dark:text-gray-300 shadow-sm hover:border-orange-600 dark:hover:border-orange-500 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-orange-600 dark:hover:text-orange-400 focus:outline-none focus:ring-2 focus:ring-orange-600 focus:ring-offset-2 disabled:bg-gray-100 dark:disabled:bg-gray-900 disabled:cursor-not-allowed transition-colors"
+        >
+          {submittedTextId && !submittingText ? (
+            <span className="flex items-center justify-center font-mono">
+              <svg className="h-3 w-3 text-green-500 mr-1.5" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+              </svg>
+              Enter {sourceType === "resume" ? "Resume" : "Job Description"} (Ready)
+            </span>
+          ) : (
+            <span className="font-mono">Enter {sourceType === "resume" ? "Resume" : "Job Description"}</span>
+          )}
+        </button>
       </div>
+
+      {/* Modal for Text Input */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
+            {/* Backdrop */}
+            <div
+              className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
+              onClick={() => setIsModalOpen(false)}
+            ></div>
+
+            {/* Modal */}
+            <div className="relative transform overflow-hidden rounded-lg bg-gradient-to-br from-orange-50 via-orange-100/80 to-orange-50 dark:from-gray-800 dark:via-orange-950/30 dark:to-orange-950/20 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-2xl">
+              {/* Header */}
+              <div className="bg-gradient-to-br from-orange-50 via-orange-100/80 to-orange-50 dark:from-gray-800 dark:via-orange-950/30 dark:to-orange-950/20 px-4 pb-4 pt-5 sm:p-6 sm:pb-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-semibold leading-6 text-gray-900 dark:text-white font-mono">
+                    Enter {sourceType === "resume" ? "Resume" : "Job Description"}
+                  </h3>
+                  <button
+                    onClick={() => setIsModalOpen(false)}
+                    className="rounded-md text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-600 focus:ring-offset-2"
+                  >
+                    <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              {/* Body */}
+              <div className="bg-gradient-to-br from-orange-50 via-orange-100/80 to-orange-50 dark:from-gray-800 dark:via-orange-950/30 dark:to-orange-950/20 px-4 pb-4 sm:p-6 sm:pt-0">
+                <textarea
+                  id={`text-input-${sourceType}`}
+                  rows={12}
+                  value={textInput}
+                  onChange={handleTextChange}
+                  disabled={uploading || submittingText || !!uploadedFile}
+                  placeholder={`Enter your ${sourceType === "resume" ? "resume" : "job description"} text here...`}
+                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-600 focus:ring-orange-600 dark:border-gray-700 dark:bg-gray-900 dark:text-white sm:text-sm disabled:bg-gray-100 dark:disabled:bg-gray-900 transition-colors px-3 py-2"
+                />
+                <div className="mt-3 flex items-center justify-between">
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    {textInput.length} characters
+                    {submittingText && (
+                      <span className="ml-2 text-orange-600 dark:text-orange-400">
+                        • Submitting...
+                      </span>
+                    )}
+                    {submittedTextId && !submittingText && (
+                      <span className="ml-2 text-green-600 dark:text-green-400">
+                        • Ready
+                      </span>
+                    )}
+                  </p>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="bg-gradient-to-br from-orange-50 via-orange-100/80 to-orange-50 dark:from-gray-800 dark:via-orange-950/30 dark:to-orange-950/20 px-4 py-3 sm:flex sm:justify-center sm:gap-3 sm:px-6">
+                <button
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
+                  className="mt-3 inline-flex justify-center rounded-md bg-orange-600 px-5 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-600 focus:ring-offset-2 sm:mt-0 font-mono"
+                >
+                  Done
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTextInput("");
+                    setSubmittedTextId(null);
+                    setIsModalOpen(false);
+                  }}
+                  className="mt-3 inline-flex justify-center rounded-md bg-white dark:bg-gray-800 px-5 py-1.5 text-sm font-semibold text-gray-900 dark:text-gray-300 shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 sm:mt-0 font-mono"
+                >
+                  Clear
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Error Message */}
       {error && (

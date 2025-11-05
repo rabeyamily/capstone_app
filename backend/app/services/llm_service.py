@@ -15,12 +15,13 @@ class LLMService:
         """Initialize LLM service with OpenAI client."""
         self.client = None
         self.api_key = settings.openai_api_key
+        # Read model dynamically from settings (don't cache it)
         self.model = settings.llm_model
         self.temperature = settings.llm_temperature
         self.max_tokens = settings.llm_max_tokens
         
         # Rate limiting
-        self.rate_limit_delay = 1.0  # Seconds between requests
+        self.rate_limit_delay = 0.1  # Reduced to 0.1 seconds - OpenAI API can handle parallel requests
         self.last_request_time = 0
         self.max_retries = 3
         self.retry_delay = 2.0  # Seconds to wait before retry
@@ -31,6 +32,10 @@ class LLMService:
         else:
             # Use mock mode for development without API key
             self.client = None
+    
+    def get_model(self):
+        """Get current model from settings (allows runtime updates)."""
+        return settings.llm_model
     
     def _rate_limit(self):
         """Apply rate limiting by delaying requests."""
@@ -73,6 +78,11 @@ class LLMService:
                     wait_time = self.retry_delay * (2 ** attempt)
                     time.sleep(wait_time)
                     return None
+            # Check for quota errors
+            if "insufficient_quota" in str(error).lower() or error.status_code == 429:
+                if "insufficient_quota" in str(error).lower():
+                    return "OpenAI API quota exceeded. Please check your billing and quota at https://platform.openai.com/account/billing"
+                return f"Rate limit exceeded. Please try again later. Error: {error.message}"
             return f"API error: {error.message}"
         
         else:
@@ -108,9 +118,9 @@ class LLMService:
                 "Please set OPENAI_API_KEY in your .env file."
             )
         
-        model = model or self.model
+        model = model or self.get_model()  # Use dynamic getter to read current settings
         temperature = temperature if temperature is not None else self.temperature
-        max_tokens = max_tokens or self.max_tokens
+        max_tokens = max_tokens if max_tokens is not None else self.max_tokens
         
         # Apply rate limiting
         self._rate_limit()

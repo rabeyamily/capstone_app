@@ -49,25 +49,40 @@ class TechnicalSkillsExtractor:
             # Build prompt for technical skills extraction
             messages = skill_extraction_prompts.build_technical_skills_prompt(text)
             
+            print(f"[Extraction] Calling LLM API for technical skills extraction...")
+            
             # Call LLM API
             response = llm_service.call_api(
                 messages=messages,
                 response_format=skill_extraction_prompts.get_response_format()
             )
             
+            print(f"[Extraction] LLM API call successful. Response content length: {len(response.get('content', ''))}")
+            
             # Extract JSON from response
             result = llm_service.extract_json_response(response["content"])
+            
+            # Debug: Log the raw response
+            print(f"[Extraction] Technical skills LLM response: {str(result)[:500]}")
             
             # Parse skills from result
             skills = TechnicalSkillsExtractor._parse_skills(result)
             
+            # Debug: Log parsed skills count
+            print(f"[Extraction] Parsed {len(skills)} technical skills from response")
+            
             # Validate and filter skills
             validated_skills = TechnicalSkillsExtractor._validate_skills(skills)
+            
+            print(f"[Extraction] After validation: {len(validated_skills)} technical skills")
             
             return validated_skills, None
             
         except Exception as e:
             error_message = f"Error extracting technical skills: {str(e)}"
+            import traceback
+            print(f"[Extraction] ERROR extracting technical skills: {error_message}")
+            print(f"[Extraction] Traceback: {traceback.format_exc()}")
             return [], error_message
     
     @staticmethod

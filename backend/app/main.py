@@ -8,7 +8,7 @@ from app.config import settings
 
 app = FastAPI(
     title=settings.app_name,
-    description="AI-powered application to analyze resume-job skill gaps",
+    description="AI-powered application to analyze resume-job skill gaps, education alignment, and provide personalized recommendations",
     version=settings.app_version,
     debug=settings.debug,
 )

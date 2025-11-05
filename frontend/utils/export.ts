@@ -11,7 +11,7 @@ export function exportToCSV(report: SkillGapReport): string {
   const rows: string[] = [];
 
   // Header
-  rows.push("Skill Gap Analysis Report");
+  rows.push("SkilledU - Skill Gap Analysis Report");
   rows.push(`Generated: ${new Date(report.generated_at).toLocaleString()}`);
   rows.push("");
 

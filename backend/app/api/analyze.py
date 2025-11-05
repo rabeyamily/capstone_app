@@ -11,6 +11,7 @@ from app.services.gap_analysis import gap_analyzer
 from app.services.fit_score import fit_score_calculator
 from app.services.recommendations import recommendations_generator
 from app.services.unified_extraction import unified_skill_extractor
+from app.services.learning_resources import learning_resources_service
 from app.utils.file_storage import file_storage
 
 router = APIRouter()

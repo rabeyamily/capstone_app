@@ -50,25 +50,40 @@ class SoftSkillsExtractor:
             # Build prompt for soft skills extraction
             messages = skill_extraction_prompts.build_soft_skills_prompt(text)
             
+            print(f"[Extraction] Calling LLM API for soft skills extraction...")
+            
             # Call LLM API
             response = llm_service.call_api(
                 messages=messages,
                 response_format=skill_extraction_prompts.get_response_format()
             )
             
+            print(f"[Extraction] LLM API call successful. Response content length: {len(response.get('content', ''))}")
+            
             # Extract JSON from response
             result = llm_service.extract_json_response(response["content"])
+            
+            # Debug: Log the raw response
+            print(f"[Extraction] Soft skills LLM response: {str(result)[:500]}")
             
             # Parse skills from result
             skills = SoftSkillsExtractor._parse_skills(result)
             
+            # Debug: Log parsed skills count
+            print(f"[Extraction] Parsed {len(skills)} soft skills from response")
+            
             # Validate and filter skills
             validated_skills = SoftSkillsExtractor._validate_soft_skills(skills)
+            
+            print(f"[Extraction] After validation: {len(validated_skills)} soft skills")
             
             return validated_skills, None
             
         except Exception as e:
             error_message = f"Error extracting soft skills: {str(e)}"
+            import traceback
+            print(f"[Extraction] ERROR extracting soft skills: {error_message}")
+            print(f"[Extraction] Traceback: {traceback.format_exc()}")
             return [], error_message
     
     @staticmethod
@@ -102,8 +117,14 @@ class SoftSkillsExtractor:
             # Extract JSON from response
             result = llm_service.extract_json_response(response["content"])
             
+            # Debug: Log the raw response
+            print(f"[Extraction] Education LLM response: {str(result)[:500]}")
+            
             # Parse education from result
             education_list = SoftSkillsExtractor._parse_education(result, source_type)
+            
+            # Debug: Log parsed education count
+            print(f"[Extraction] Parsed {len(education_list)} education entries from response")
             
             return education_list, None
             
@@ -142,8 +163,14 @@ class SoftSkillsExtractor:
             # Extract JSON from response
             result = llm_service.extract_json_response(response["content"])
             
+            # Debug: Log the raw response
+            print(f"[Extraction] Certifications LLM response: {str(result)[:500]}")
+            
             # Parse certifications from result
             certifications = SoftSkillsExtractor._parse_certifications(result, source_type)
+            
+            # Debug: Log parsed certifications count
+            print(f"[Extraction] Parsed {len(certifications)} certifications from response")
             
             return certifications, None
             

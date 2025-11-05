@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
+import Logo from "./Logo";
+import ThemeToggle from "./ThemeToggle";
 
 interface NavigationItem {
   label: string;
@@ -10,9 +12,29 @@ interface NavigationItem {
   icon?: React.ReactNode;
 }
 
+const HomeIcon = ({ className }: { className?: string }) => (
+  <svg
+    className={className}
+    fill="none"
+    viewBox="0 0 24 24"
+    strokeWidth="1.5"
+    stroke="currentColor"
+    aria-hidden="true"
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25"
+    />
+  </svg>
+);
+
 const navigationItems: NavigationItem[] = [
-  { label: "Home", href: "/" },
-  { label: "Analyze", href: "/analyze" },
+  { 
+    label: "Home", 
+    href: "/",
+    icon: <HomeIcon className="h-5 w-5" />
+  },
   { label: "About", href: "/about" },
 ];
 
@@ -22,27 +44,14 @@ export default function Header() {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-gray-200 bg-white/80 backdrop-blur-sm dark:border-gray-800 dark:bg-gray-900/80">
-      <nav className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
+      <nav className="mx-auto flex max-w-7xl items-center justify-between px-0 sm:px-0.5 py-4 lg:px-1">
         {/* Logo */}
         <div className="flex items-center">
           <Link
             href="/"
-            className="flex items-center space-x-2 text-xl font-bold text-gray-900 dark:text-white"
+            className="flex items-center"
           >
-            <svg
-              className="h-8 w-8 text-blue-600 dark:text-blue-400"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-              />
-            </svg>
-            <span>Skill Gap Analyzer</span>
+            <Logo />
           </Link>
         </div>
 
@@ -56,20 +65,23 @@ export default function Header() {
                 href={item.href}
                 className={`px-3 py-2 text-sm font-medium transition-colors ${
                   isActive
-                    ? "text-blue-600 dark:text-blue-400"
-                    : "text-gray-700 hover:text-blue-600 dark:text-gray-300 dark:hover:text-blue-400"
+                    ? "text-orange-600 dark:text-orange-400"
+                    : "text-orange-600 hover:text-black dark:text-orange-400 dark:hover:text-black"
                 }`}
+                aria-label={item.label}
               >
-                {item.label}
+                {item.icon || item.label}
               </Link>
             );
           })}
+          {/* Theme Toggle */}
+          <ThemeToggle />
         </div>
 
         {/* Mobile menu button */}
         <button
           type="button"
-          className="md:hidden inline-flex items-center justify-center rounded-md p-2 text-gray-700 hover:bg-gray-100 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-white"
+          className="md:hidden inline-flex items-center justify-center rounded-md p-2 text-orange-600 hover:text-black hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-orange-600 dark:text-orange-400 dark:hover:text-black dark:hover:bg-gray-800"
           aria-controls="mobile-menu"
           aria-expanded={mobileMenuOpen}
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -118,16 +130,24 @@ export default function Header() {
                   key={item.href}
                   href={item.href}
                   onClick={() => setMobileMenuOpen(false)}
-                  className={`block rounded-md px-3 py-2 text-base font-medium ${
+                  className={`flex items-center gap-2 rounded-md px-3 py-2 text-base font-medium ${
                     isActive
-                      ? "bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400"
-                      : "text-gray-700 hover:bg-gray-50 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-white"
+                      ? "bg-orange-50 text-orange-600 dark:bg-orange-900/20 dark:text-orange-400"
+                      : "text-orange-600 hover:text-black dark:text-orange-400 dark:hover:text-black"
                   }`}
                 >
+                  {item.icon && <span className="flex-shrink-0">{item.icon}</span>}
                   {item.label}
                 </Link>
               );
             })}
+            {/* Theme Toggle in Mobile Menu */}
+            <div className="flex items-center justify-between px-3 py-2">
+              <span className="text-base font-medium text-orange-600 hover:text-black dark:text-orange-400 dark:hover:text-black">
+                Theme
+              </span>
+              <ThemeToggle />
+            </div>
           </div>
         </div>
       )}

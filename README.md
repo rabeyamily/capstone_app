@@ -1,8 +1,8 @@
-# 🚀 AI-Powered Resume–Job Skill Gap Analyzer
+# 🚀 SkilledU - AI-Powered Resume–Job Skill Gap Analyzer
 
 ## 🎯 Overview
 
-An intelligent web application that analyzes a user's resume against a job description to identify skill gaps, education mismatches, and missing competencies. The system extracts both technical and soft skills, computes a Fit Score, and generates a personalized Skill Gap Report that can be downloaded instantly — all without requiring login or account creation.
+SkilledU is an intelligent web application that analyzes a user's resume against a job description to identify skill gaps, education mismatches, and missing competencies. The system extracts both technical and soft skills, computes a Fit Score, and generates a personalized Skill Gap Report that can be downloaded instantly — all without requiring login or account creation.
 
 ## 🧩 Problem Statement
 
@@ -53,16 +53,34 @@ capstone_app/
 - Python 3.9+
 - Node.js 18+
 - Git
+- OpenAI API Key (get one at https://platform.openai.com/api-keys)
 
-### Installation
-*(Coming soon - will be added as development progresses)*
+### Quick Start
 
-### Usage
-*(Coming soon - will be added as development progresses)*
+For detailed setup and running instructions, see **[HOW_TO_RUN.md](./HOW_TO_RUN.md)**
 
-## 📋 Development Progress
+**Quick commands:**
 
-See [PROJECT_BREAKDOWN.md](./PROJECT_BREAKDOWN.md) for detailed 30-step implementation plan.
+**Backend:**
+```bash
+cd backend
+source venv/bin/activate  # On macOS/Linux
+pip install -r requirements.txt
+# Add OPENAI_API_KEY to .env file
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+**Frontend:**
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+The application will be available at:
+- Frontend: http://localhost:3000
+- Backend API: http://localhost:8000
+- API Docs: http://localhost:8000/docs
 
 ## 🔐 Data Privacy
 
@@ -92,5 +110,5 @@ This is a capstone project. Contributions and suggestions are welcome!
 
 ## 👤 Author
 
-Capstone Project - AI-Powered Resume–Job Skill Gap Analyzer
+Capstone Project - SkilledU: AI-Powered Resume–Job Skill Gap Analyzer
 

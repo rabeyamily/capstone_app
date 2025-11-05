@@ -131,6 +131,10 @@ class FitScoreCalculator:
             if skill.category in GapAnalyzer.TECHNICAL_CATEGORIES
         ]
         
+        # If no JD skills at all, return 0 (no data to analyze)
+        if not jd_skills.skills:
+            return 0.0
+        
         if not jd_technical:
             return 100.0  # No technical requirements means perfect match
         
@@ -163,6 +167,10 @@ class FitScoreCalculator:
             skill for skill in jd_skills.skills
             if skill.category in GapAnalyzer.SOFT_SKILL_CATEGORIES
         ]
+        
+        # If no JD skills at all, return 0 (no data to analyze)
+        if not jd_skills.skills:
+            return 0.0
         
         if not jd_soft:
             return 100.0  # No soft skill requirements means perfect match
